@@ -61,3 +61,14 @@ todo add --task "Create database" --project "Website" --due 2024-09-20
 
 ### Delete a project and all associated tasks
 ```todo delete-project "Website"```
+
+## Future Enhancements
+Task Prioritization: Add priority levels to tasks and allow sorting/filtering by priority.
+Archiving: Archive or clear completed tasks.
+Reminder System: Set reminders for tasks nearing their due date.
+
+## Contributing
+Contributions are welcome! Feel free to open issues or submit pull requests to improve the functionality of the todo list manager.
+
+## License
+This project is licensed under the MIT License.
