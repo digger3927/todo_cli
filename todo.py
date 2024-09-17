@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 import argparse
+import os
 from datetime import datetime
 
+# Get the user's home directory or a specific directory
+home_dir = os.path.expanduser("~")
+todo_file_path = os.path.join(home_dir, "todolist.txt")
+
+# Ensure the file exists
+if not os.path.exists(todo_file_path):
+    with open(todo_file_path, 'w') as f:
+        pass  # Create the file if it doesn't exist
+
 def add_task(task, project="General", due_date=None):
-    with open("todolist.txt", "a") as t:
+    with open(todo_file_path, "a") as t:
         if due_date:
             t.write(f"- [ ] {task} (Project: {project}) (Due: {due_date})\n")
         else:
@@ -13,7 +23,7 @@ def add_task(task, project="General", due_date=None):
 
 
 def open_todolist(sort_by=None, project_name=None):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     if not lines:
@@ -45,7 +55,7 @@ def open_todolist(sort_by=None, project_name=None):
 
 
 def complete_task(task_description):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Find and mark the task as completed based on its description
@@ -57,7 +67,7 @@ def complete_task(task_description):
             break
 
     if task_found:
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(lines)
         print(f"Task '{task_description}' marked as completed!")
     else:
@@ -65,7 +75,7 @@ def complete_task(task_description):
 
 
 def delete_task(task_description):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Find and delete the task based on its description
@@ -79,7 +89,7 @@ def delete_task(task_description):
             new_lines.append(line)
 
     if task_found:
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(new_lines)
     else:
         print(f"Task '{task_description}' not found.")
@@ -89,7 +99,7 @@ def delete_project(project_name):
     project_header = f"--- Project: {project_name} ---"
     project_task_tag = f"(Project: {project_name})"
 
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Filter out the project header and tasks associated with the project
@@ -97,7 +107,7 @@ def delete_project(project_name):
 
     # Check if any lines were removed (i.e., the project existed)
     if len(new_lines) != len(lines):
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(new_lines)
         print(f"Deleted project '{project_name}' and all associated tasks.")
     else:
@@ -105,7 +115,7 @@ def delete_project(project_name):
 
 
 def move_project(current_project, new_project):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Update tasks from the current project to the new project
@@ -116,7 +126,7 @@ def move_project(current_project, new_project):
             updated = True
 
     if updated:
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(lines)
         print(f"Moved tasks from project '{current_project}' to '{new_project}'.")
     else:
@@ -125,7 +135,7 @@ def move_project(current_project, new_project):
 def add_project(project_name):
     project_header = f"--- Project: {project_name} ---"
 
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Check if the project header already exists
@@ -135,12 +145,12 @@ def add_project(project_name):
         print(f"Project '{project_name}' already exists.")
     else:
         # Add the new project header
-        with open("todolist.txt", "a") as t:
+        with open(todo_file_path, "a") as t:
             t.write(f"\n{project_header}\n")
         print(f"Project '{project_name}' created successfully!")
 
 def move_task(task_description, new_project):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Find the task by its description and update its project
@@ -157,7 +167,7 @@ def move_task(task_description, new_project):
             break
 
     if task_found:
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(lines)
         print(f'Task "{task_description}" moved to project "{new_project}".')
     else:
@@ -165,7 +175,7 @@ def move_task(task_description, new_project):
 
 
 def add_note(description, note, is_project=False):
-    with open("todolist.txt", "r") as t:
+    with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
     # Determine if we are working with a task or a project
@@ -191,7 +201,7 @@ def add_note(description, note, is_project=False):
                 break
 
     if task_found:
-        with open("todolist.txt", "w") as t:
+        with open(todo_file_path, "w") as t:
             t.writelines(lines)
         print(f'Note added to {"project" if is_project else "task"} "{description}": {note}')
     else:
