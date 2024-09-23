@@ -1,4 +1,0 @@
-
-- [ ] create database (Project: website) (Note: use either SQLite or MySQL)
-- [ ] set up hosting (Project: website)
-- [ ] build mvp (Project: website)
