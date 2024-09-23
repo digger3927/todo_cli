@@ -21,7 +21,6 @@ def add_task(task, project="General", due_date=None):
     print(f'Task "{task}" added to project "{project}" successfully!')
 
 
-
 def open_todolist(sort_by=None, project_name=None):
     with open(todo_file_path, "r") as t:
         lines = t.readlines()
@@ -52,8 +51,6 @@ def open_todolist(sort_by=None, project_name=None):
         print(f"{index}. {task}")
 
 
-
-
 def complete_task(task_description):
     with open(todo_file_path, "r") as t:
         lines = t.readlines()
@@ -74,140 +71,18 @@ def complete_task(task_description):
         print(f"Task '{task_description}' not found or already completed.")
 
 
-def delete_task(task_description):
+def clear_completed_tasks():
     with open(todo_file_path, "r") as t:
         lines = t.readlines()
 
-    # Find and delete the task based on its description
-    task_found = False
-    new_lines = []
-    for line in lines:
-        if task_description in line and "- [ ]" in line or "- [x]" in line:
-            task_found = True
-            print(f"Deleted task: {line.strip()}")
-        else:
-            new_lines.append(line)
+    # Filter out completed tasks
+    incomplete_tasks = [line for line in lines if "- [x]" not in line]
 
-    if task_found:
-        with open(todo_file_path, "w") as t:
-            t.writelines(new_lines)
-    else:
-        print(f"Task '{task_description}' not found.")
+    # Write back only incomplete tasks
+    with open(todo_file_path, "w") as t:
+        t.writelines(incomplete_tasks)
 
-
-def delete_project(project_name):
-    project_header = f"--- Project: {project_name} ---"
-    project_task_tag = f"(Project: {project_name})"
-
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Filter out the project header and tasks associated with the project
-    new_lines = [line for line in lines if project_header not in line and project_task_tag not in line]
-
-    # Check if any lines were removed (i.e., the project existed)
-    if len(new_lines) != len(lines):
-        with open(todo_file_path, "w") as t:
-            t.writelines(new_lines)
-        print(f"Deleted project '{project_name}' and all associated tasks.")
-    else:
-        print(f"Project '{project_name}' does not exist.")
-
-
-def move_project(current_project, new_project):
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Update tasks from the current project to the new project
-    updated = False
-    for i, line in enumerate(lines):
-        if f"(Project: {current_project})" in line:
-            lines[i] = line.replace(f"(Project: {current_project})", f"(Project: {new_project})")
-            updated = True
-
-    if updated:
-        with open(todo_file_path, "w") as t:
-            t.writelines(lines)
-        print(f"Moved tasks from project '{current_project}' to '{new_project}'.")
-    else:
-        print(f"No tasks found for project '{current_project}'.")
-
-def add_project(project_name):
-    project_header = f"--- Project: {project_name} ---"
-
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Check if the project header already exists
-    project_exists = any(project_header in line for line in lines)
-
-    if project_exists:
-        print(f"Project '{project_name}' already exists.")
-    else:
-        # Add the new project header
-        with open(todo_file_path, "a") as t:
-            t.write(f"\n{project_header}\n")
-        print(f"Project '{project_name}' created successfully!")
-
-def move_task(task_description, new_project):
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Find the task by its description and update its project
-    task_found = False
-    for i, line in enumerate(lines):
-        if task_description in line:
-            # Replace the current project with the new project
-            if "(Project:" in line:
-                lines[i] = line.split("(Project:")[0] + f"(Project: {new_project})\n"
-            else:
-                # If no project exists, add the new project
-                lines[i] = line.strip() + f" (Project: {new_project})\n"
-            task_found = True
-            break
-
-    if task_found:
-        with open(todo_file_path, "w") as t:
-            t.writelines(lines)
-        print(f'Task "{task_description}" moved to project "{new_project}".')
-    else:
-        print(f'Task "{task_description}" not found.')
-
-
-def add_note(description, note, is_project=False):
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Determine if we are working with a task or a project
-    task_found = False
-    for i, line in enumerate(lines):
-        if is_project:
-            # Handle project note addition
-            if f"--- Project: {description} ---" in line:
-                if "(Note:" in line:
-                    lines[i] = line.split("(Note:")[0] + f"(Note: {note})\n"
-                else:
-                    lines[i] = line.strip() + f" (Note: {note})\n"
-                task_found = True
-                break
-        else:
-            # Handle task note addition
-            if description in line:
-                if "(Note:" in line:
-                    lines[i] = line.split("(Note:")[0] + f"(Note: {note})\n"
-                else:
-                    lines[i] = line.strip() + f" (Note: {note})\n"
-                task_found = True
-                break
-
-    if task_found:
-        with open(todo_file_path, "w") as t:
-            t.writelines(lines)
-        print(f'Note added to {"project" if is_project else "task"} "{description}": {note}')
-    else:
-        print(f'{"Project" if is_project else "Task"} "{description}" not found.')
-
-
+    print("Cleared all completed tasks.")
 
 
 # Create the main parser
@@ -232,35 +107,8 @@ list_parser.add_argument('--project', help='Filter tasks by project')
 complete_parser = subparsers.add_parser('complete', help='Mark a task as completed')
 complete_parser.add_argument('task_description', help='Part of the task description to mark as completed')
 
-# Add a subparser for the 'delete' command
-delete_parser = subparsers.add_parser('delete', help='Delete a task by description')
-delete_parser.add_argument('task_description', help='Part of the task description to delete')
-
-# Add a subparser for the 'delete-project' command
-delete_project_parser = subparsers.add_parser('delete-project', help="Delete a project.  This will delete all associated tasks")
-delete_project_parser.add_argument('project_name', help='Name of the project to be deleted')
-
-# Add a subparser for the 'move-project' command
-move_project_parser = subparsers.add_parser('move-project', help='Move tasks from one project to another')
-move_project_parser.add_argument('current_project', help='Current project name')
-move_project_parser.add_argument('new_project', help='New project name')
-
-# Subparser for adding projects
-add_project_parser = subparsers.add_parser('add-project', help='Add a new project')
-add_project_parser.add_argument('project_name', help='Name of the project to add')
-
-# Subparser to move individual tasks to a different project
-move_task_parser = subparsers.add_parser('move-task', help='Move a task to a new project')
-move_task_parser.add_argument('task_description', help='Part of the task description to move')
-move_task_parser.add_argument('new_project', help='New project name')
-
-# Add parser for task and project notes.
-add_note_parser = subparsers.add_parser('add-note', help='Add a note to a task or project')
-add_note_parser.add_argument('description', help='Part of the task or project description to add a note to')
-add_note_parser.add_argument('note', help='The note to add')
-add_note_parser.add_argument('--project', action='store_true', help='Specify this flag to add a note to a project')
-
-
+# Add a subparser for the 'clear-completed' command
+clear_parser = subparsers.add_parser('clear-completed', help='Clear all completed tasks')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -272,13 +120,7 @@ elif args.command == 'list':
     open_todolist(sort_by=args.sort, project_name=args.project)
 elif args.command == 'complete':
     complete_task(args.task_description)
-elif args.command == 'delete':
-    delete_task(args.task_description)
-elif args.command == 'delete-project':
-    delete_project(args.project_name)
-elif args.command == 'move-task':
-    move_task(args.task_description, args.new_project)
-elif args.command == 'add-note':
-    add_note(args.description, args.note, is_project=args.project)
+elif args.command == 'clear-completed':
+    clear_completed_tasks()
 else:
     print("Please provide a valid command.")
