@@ -1,88 +1,136 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import sqlite3
 from datetime import datetime
 
-# Get the user's home directory or a specific directory
-home_dir = os.path.expanduser("~")
-todo_file_path = os.path.join(home_dir, "todolist.txt")
+# Database setup
+DB_PATH = os.path.expanduser("~/todolist.db")
 
-# Ensure the file exists
-if not os.path.exists(todo_file_path):
-    with open(todo_file_path, 'w') as f:
-        pass  # Create the file if it doesn't exist
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            description TEXT NOT NULL,
+            project TEXT,
+            due_date TEXT,
+            status TEXT NOT NULL DEFAULT 'incomplete'
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-def add_task(task, project="General", due_date=None):
-    with open(todo_file_path, "a") as t:
-        if due_date:
-            t.write(f"- [ ] {task} (Project: {project}) (Due: {due_date})\n")
-        else:
-            t.write(f"- [ ] {task} (Project: {project})\n")
-    print(f'Task "{task}" added to project "{project}" successfully!')
+init_db() # Initialize the database
+
+def add_task(task_description, project="General", due_date=None):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO tasks (description, project, due_date, status)
+        VALUES (?, ?, ?, ?)
+    """, (task_description, project, due_date, 'incomplete'))
+    conn.commit()
+    conn.close()
+    print(f'Task "{task_description}" added to project "{project}" successfully to the database!')
 
 
 def open_todolist(sort_by=None, project_name=None):
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-    if not lines:
+    query = "SELECT id, description, project, due_date, status FROM tasks"
+    params = []
+    conditions = []
+
+    if project_name:
+        conditions.append("project = ?")
+        params.append(project_name)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    # Sorting logic
+    if sort_by == "status":
+        # 'incomplete' before 'completed'
+        query += " ORDER BY status DESC"
+    elif sort_by == "project":
+        # Sort by project, then by description for consistent ordering
+        query += " ORDER BY project ASC, description ASC"
+    elif sort_by == "due":
+        # Sort by due_date, tasks with no due date (NULL) last, then by description
+        query += " ORDER BY CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END, due_date ASC, description ASC"
+    else:
+        # Default sort by ID (order of addition)
+        query += " ORDER BY id ASC"
+
+    cursor.execute(query, tuple(params))
+    tasks_rows = cursor.fetchall()
+    conn.close()
+
+    if not tasks_rows:
         print("No tasks found.")
         return
 
-    tasks = []
-    for line in lines:
-        if "- [ ]" in line or "- [x]" in line:
-            tasks.append(line.strip())
-
-    # Filter tasks by project if a project name is provided
-    if project_name:
-        tasks = [task for task in tasks if f"(Project: {project_name})" in task]
-
-    # Sort tasks by the requested method
-    if sort_by == "status":
-        tasks = sorted(tasks, key=lambda x: "[x]" in x)  # Incomplete tasks first
-    elif sort_by == "project":
-        tasks = sorted(tasks, key=lambda x: x.split("(Project: ")[-1].rstrip(")") if "(Project:" in x else "")
-    elif sort_by == "due":
-        tasks = sorted(tasks, key=lambda x: datetime.strptime(x.split("(Due: ")[-1].rstrip(")"), "%Y-%m-%d") if "(Due:" in x else datetime.max)
-
     print("Current tasks:")
-    for index, task in enumerate(tasks, start=1):
-        print(f"{index}. {task}")
+    for index, row in enumerate(tasks_rows, start=1):
+        task_id, description, project, due_date, status = row
+        status_indicator = "[x]" if status == "completed" else "[ ]"
+        due_date_str = f" (Due: {due_date})" if due_date else ""
+        project_str = f" (Project: {project})" if project else "" # Assuming project can be NULL
+        # Output format: 1. [ ] Task description (Project: MyProject) (Due: YYYY-MM-DD)
+        print(f"{index}. {status_indicator} {description}{project_str}{due_date_str}")
 
 
-def complete_task(task_description):
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
+def complete_task(task_description_part):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    task_id_to_complete = None
+    # Find the oldest, incomplete task that matches the description part
+    cursor.execute("""
+        SELECT id FROM tasks
+        WHERE description LIKE ? AND status = 'incomplete'
+        ORDER BY id ASC
+        LIMIT 1
+    """, (f"%{task_description_part}%",))
+    row = cursor.fetchone()
 
-    # Find and mark the task as completed based on its description
-    task_found = False
-    for i, line in enumerate(lines):
-        if task_description in line and "- [ ]" in line:
-            lines[i] = lines[i].replace("- [ ]", "- [x]")
-            task_found = True
-            break
+    if row:
+        task_id_to_complete = row[0]
 
-    if task_found:
-        with open(todo_file_path, "w") as t:
-            t.writelines(lines)
-        print(f"Task '{task_description}' marked as completed!")
+    updated_rows = 0
+    if task_id_to_complete is not None:
+        cursor.execute("""
+            UPDATE tasks
+            SET status = 'completed'
+            WHERE id = ?
+        """, (task_id_to_complete,))
+        conn.commit()
+        updated_rows = cursor.rowcount
+    
+    conn.close()
+
+    if updated_rows > 0:
+        print(f"Task containing '{task_description_part}' (ID: {task_id_to_complete}) marked as completed!")
     else:
-        print(f"Task '{task_description}' not found or already completed.")
+        print(f"Task containing '{task_description_part}' not found or already completed.")
 
 
 def clear_completed_tasks():
-    with open(todo_file_path, "r") as t:
-        lines = t.readlines()
-
-    # Filter out completed tasks
-    incomplete_tasks = [line for line in lines if "- [x]" not in line]
-
-    # Write back only incomplete tasks
-    with open(todo_file_path, "w") as t:
-        t.writelines(incomplete_tasks)
-
-    print("Cleared all completed tasks.")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM tasks WHERE status = 'completed'")
+    deleted_rows = cursor.rowcount # Get the number of rows deleted
+    conn.commit()
+    conn.close()
+    
+    if deleted_rows > 0:
+        print(f"Cleared {deleted_rows} completed task(s) from the database.")
+    else:
+        print("No completed tasks found to clear.")
 
 
 # Create the main parser
